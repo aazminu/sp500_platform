@@ -1,0 +1,19 @@
+# Core Python dependencies
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Web framework
+Flask>=3.0.0
+flask-cors>=4.0.0
+gunicorn>=21.0.0
+
+# Trading integration (for account/position data)
+alpaca-py>=0.20.0
+
+# Performance statistics
+numpy>=1.24.0
+scipy>=1.10.0

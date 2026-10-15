@@ -1,0 +1,31 @@
+# Core Python dependencies
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Web framework
+Flask>=3.0.0
+flask-cors>=4.0.0
+gunicorn>=21.0.0
+
+# Data processing
+pandas>=2.0.0
+
+# Trading integration
+alpaca-py>=0.20.0
+
+# Email service
+resend>=0.8.0
+
+# Machine Learning (for prompting-training scripts)
+torch>=2.1.0
+transformers>=4.35.0
+peft>=0.7.0
+accelerate>=0.25.0
+tqdm>=4.66.0
+
+# Scheduling
+APScheduler>=3.10.0
