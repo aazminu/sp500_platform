@@ -37,8 +37,19 @@ def compute_sharpe_and_sortino(
 
     rf_per_period = (1.0 + risk_free_annual) ** (1.0 / periods_per_year) - 1.0
     excess = [r - rf_per_period for r in returns]
-    mean_ret = sum(returns) / len(returns)
-    ann_return = (1.0 + mean_ret) ** periods_per_year - 1.0
+
+    equity = 1.0
+    peak = 1.0
+    max_dd = 0.0
+    for r in returns:
+        equity *= 1.0 + r
+        if equity > peak:
+            peak = equity
+        dd = (peak - equity) / peak if peak > 0 else 0.0
+        if dd > max_dd:
+            max_dd = dd
+
+    ann_return = (equity ** (periods_per_year / float(len(returns))) - 1.0) if equity > 0 else -1.0
 
     if len(returns) >= 2:
         std_ret = statistics.stdev(returns)
@@ -57,17 +68,6 @@ def compute_sharpe_and_sortino(
         else 0.0
     )
 
-    equity = 1.0
-    peak = 1.0
-    max_dd = 0.0
-    for r in returns:
-        equity *= 1.0 + r
-        if equity > peak:
-            peak = equity
-        dd = (peak - equity) / peak if peak > 0 else 0.0
-        if dd > max_dd:
-            max_dd = dd
-
     return {
         "annualized_return": round(ann_return * 100.0, 4),
         "annualized_volatility": round(ann_vol * 100.0, 4),
@@ -75,6 +75,24 @@ def compute_sharpe_and_sortino(
         "sortino_ratio": round(sortino, 4),
         "max_drawdown_pct": round(max_dd * 100.0, 4),
     }
+
+
+def compute_active_share(
+    portfolio_weights: Dict[str, float],
+    benchmark_weights: Dict[str, float],
+) -> float:
+    """
+    Compute Active Share = 0.5 * sum_i |w_{p,i} - w_{b,i}| across the union of tickers.
+    Returns a float in [0.0, 1.0] rounded to 6 decimal places.
+    """
+    tickers = set(portfolio_weights.keys()) | set(benchmark_weights.keys())
+    if not tickers:
+        return 0.0
+    diff_sum = sum(
+        abs(float(portfolio_weights.get(t, 0.0)) - float(benchmark_weights.get(t, 0.0)))
+        for t in tickers
+    )
+    return round(0.5 * diff_sum, 6)
 
 
 def optimize_conviction_weights(
@@ -85,7 +103,8 @@ def optimize_conviction_weights(
     """
     Combine LLM conviction scores [0..100] with inverse-volatility scaling
     and enforce a per-asset maximum weight cap via iterative water-filling.
-    Returns normalized weights summing to 1.0 (or empty dict if no positive signal).
+    When len(active_tickers) * max_weight < 1.0, relaxes the cap to 1.0 / len(active_tickers)
+    so returned weights always sum to 1.0.
     """
     if not llm_convictions:
         return {}
@@ -104,28 +123,28 @@ def optimize_conviction_weights(
     if total_raw <= 0:
         return {}
 
+    effective_cap = max(max_weight, 1.0 / float(len(raw_scores)))
     weights = {t: val / total_raw for t, val in raw_scores.items()}
 
     # Iterative cap-and-redistribute (up to len(weights) passes)
     capped: set[str] = set()
     for _ in range(len(weights)):
-        over = [t for t, w in weights.items() if t not in capped and w > max_weight + 1e-9]
+        over = [t for t, w in weights.items() if t not in capped and w > effective_cap + 1e-9]
         if not over:
             break
         for t in over:
-            weights[t] = max_weight
+            weights[t] = effective_cap
             capped.add(t)
-        remaining_budget = 1.0 - sum(weights[t] for t in capped)
+        remaining_budget = max(0.0, 1.0 - sum(weights[t] for t in capped))
         uncapped = [t for t in weights if t not in capped]
         uncapped_sum = sum(weights[t] for t in uncapped)
-        if remaining_budget <= 0 or uncapped_sum <= 0:
+        if not uncapped or uncapped_sum <= 0:
             break
         for t in uncapped:
             weights[t] = (weights[t] / uncapped_sum) * remaining_budget
 
-    # Final normalization if cap * N >= 1.0
     total_w = sum(weights.values())
-    if total_w > 0 and abs(total_w - 1.0) > 1e-6 and len(weights) * max_weight >= 1.0:
+    if total_w > 0:
         weights = {t: w / total_w for t, w in weights.items()}
 
     return {t: round(w, 6) for t, w in weights.items()}

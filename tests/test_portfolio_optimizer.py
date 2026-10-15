@@ -9,6 +9,7 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 from portfolio_optimizer import (
+    compute_active_share,
     compute_rebalance_orders,
     compute_returns_from_prices,
     compute_sharpe_and_sortino,
@@ -29,11 +30,19 @@ def test_compute_returns_and_risk_metrics():
     assert metrics["sortino_ratio"] > 0
     assert 0 < metrics["max_drawdown_pct"] < 5.0
 
+    # Symmetric -50% then +50% yields 0.75x equity (-25% geometric return)
+    drag = compute_sharpe_and_sortino([-0.5, 0.5], risk_free_annual=0.0, periods_per_year=2)
+    assert drag["annualized_return"] == pytest.approx(-25.0, abs=1e-4)
 
-def test_compute_sharpe_empty_and_single():
+
+def test_compute_sharpe_empty_and_active_share():
     empty = compute_sharpe_and_sortino([])
     assert empty["sharpe_ratio"] == 0.0
     assert empty["max_drawdown_pct"] == 0.0
+
+    assert compute_active_share({"AAPL": 0.6, "MSFT": 0.4}, {"AAPL": 0.6, "MSFT": 0.4}) == 0.0
+    assert compute_active_share({"AAPL": 1.0}, {"NVDA": 1.0}) == 1.0
+    assert compute_active_share({"AAPL": 0.5, "MSFT": 0.5}, {"AAPL": 0.25, "MSFT": 0.25, "GOOGL": 0.5}) == 0.5
 
 
 def test_optimize_conviction_weights_respects_cap_and_normalizes():
@@ -52,6 +61,10 @@ def test_optimize_conviction_weights_respects_cap_and_normalizes():
 def test_optimize_conviction_weights_edge_cases():
     assert optimize_conviction_weights({}, {}) == {}
     assert optimize_conviction_weights({"AAPL": 0.0, "TSLA": -5.0}, {}) == {}
+    # When N * max_weight < 1.0 (e.g. 2 tickers with max_weight=0.25), relaxes cap to 1/N so weights sum to 1.0
+    two_asset = optimize_conviction_weights({"AAPL": 90.0, "MSFT": 60.0}, {"AAPL": 20.0, "MSFT": 20.0}, max_weight=0.25)
+    assert pytest.approx(sum(two_asset.values()), abs=1e-5) == 1.0
+    assert two_asset == {"AAPL": 0.5, "MSFT": 0.5}
     with pytest.raises(ValueError):
         optimize_conviction_weights({"AAPL": 80}, {}, max_weight=0.0)
 
