@@ -1,0 +1,16 @@
+# Core Python dependencies
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Data processing (for util scripts)
+pandas>=2.0.0
+
+# Trading integration (for portfolio rebalancing)
+alpaca-py>=0.20.0
+
+# Email service (for weekly stats and notifications)
+resend>=0.8.0

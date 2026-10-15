@@ -1,0 +1,11 @@
+# Frontend dependencies are managed via package.json
+# This file is for consistency with the project structure
+# 
+# The frontend uses:
+# - React 19.1.0
+# - React Router DOM 7.7.0
+# - ReactFlow 11.11.4
+# - Recharts 3.1.0
+# - Vite 7.0.4
+#
+# Install with: npm install
