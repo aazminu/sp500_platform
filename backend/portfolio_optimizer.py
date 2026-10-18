@@ -193,3 +193,28 @@ def compute_rebalance_orders(
             buys.append(order)
 
     return sells + buys
+
+def compute_max_drawdown_and_calmar(
+    close_prices: Sequence[float],
+    periods_per_year: int = 252,
+) -> Dict[str, float]:
+    """Compute peak-to-trough maximum drawdown, annualized geometric return, and Calmar ratio."""
+    prices = [float(p) for p in close_prices if p is not None and float(p) > 0]
+    if len(prices) < 2:
+        return {"max_drawdown": 0.0, "annualized_return": 0.0, "calmar_ratio": 0.0}
+    peak = prices[0]
+    max_dd = 0.0
+    for p in prices:
+        if p > peak:
+            peak = p
+        dd = (peak - p) / peak
+        if dd > max_dd:
+            max_dd = dd
+    years = (len(prices) - 1) / float(periods_per_year)
+    ann_ret = (prices[-1] / prices[0]) ** (1.0 / years) - 1.0 if years > 0 else 0.0
+    calmar = ann_ret / max_dd if max_dd > 1e-9 else 0.0
+    return {
+        "max_drawdown": round(max_dd, 6),
+        "annualized_return": round(ann_ret, 6),
+        "calmar_ratio": round(calmar, 6),
+    }
