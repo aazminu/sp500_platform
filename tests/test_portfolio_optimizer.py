@@ -81,3 +81,13 @@ def test_compute_rebalance_orders_orders_sells_before_buys():
     assert orders[0] == {"ticker": "AAPL", "side": "SELL", "qty": 10, "estimated_notional": 2000.0}
     assert orders[1] == {"ticker": "MSFT", "side": "BUY", "qty": 10, "estimated_notional": 4000.0}
     assert orders[2] == {"ticker": "NVDA", "side": "BUY", "qty": 25, "estimated_notional": 3000.0}
+
+from backend.portfolio_optimizer import compute_max_drawdown_and_calmar
+
+
+def test_compute_max_drawdown_and_calmar():
+    prices = [100.0, 110.0, 99.0, 105.0, 120.0]
+    res = compute_max_drawdown_and_calmar(prices, periods_per_year=4)
+    assert abs(res["max_drawdown"] - 0.10) < 1e-6
+    assert abs(res["annualized_return"] - 0.20) < 1e-6
+    assert abs(res["calmar_ratio"] - 2.0) < 1e-4
